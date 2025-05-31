@@ -1,5 +1,10 @@
 # server.py
 
+from dotenv import load_dotenv
+import os
+load_dotenv()  # Load environment variables from .env
+api_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
+
 from flask import Flask, request, jsonify
 from main import RAGChatbot
 import os
@@ -11,8 +16,15 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+
+if not api_token:
+    raise ValueError(api_token)
+
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = api_token
+
+
 # Initialize the chatbot
-chatbot = RAGChatbot(huggingface_token="your_huggingface_token_here")
+chatbot = RAGChatbot(huggingface_token=api_token)
 
 @app.route('/upload', methods=['POST'])
 def upload():
