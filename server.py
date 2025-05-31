@@ -1,51 +1,56 @@
-# server.py
-
-from dotenv import load_dotenv
+from flask import Flask, request, jsonify
 import os
-load_dotenv()  # Load environment variables from .env
+from main import RAGChatbot
+from dotenv import load_dotenv
+import logging
+
+# Load environment variables
+load_dotenv()
 api_token = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
-from flask import Flask, request, jsonify
-from main import RAGChatbot
-import os
-
-# Create upload directory if it doesn't exist
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
+app.config['UPLOAD_FOLDER'] = 'uploads'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 if not api_token:
-    raise ValueError(api_token)
+    logger.error("HuggingFace API token not found")
+    raise ValueError("Missing HUGGINGFACEHUB_API_TOKEN")
 
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = api_token
-
-
-# Initialize the chatbot
+# Initialize chatbot
+logger.info("Initializing RAG chatbot...")
 chatbot = RAGChatbot(huggingface_token=api_token)
+logger.info("Chatbot ready")
 
 @app.route('/upload', methods=['POST'])
 def upload():
     if 'pdfs' not in request.files:
         return jsonify({'error': 'No PDF files uploaded'}), 400
 
-    pdfs = request.files.getlist('pdfs')
     saved_paths = []
+    for pdf in request.files.getlist('pdfs'):
+        try:
+            filename = pdf.filename
+            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            pdf.save(path)
+            saved_paths.append(path)
+            logger.info(f"Saved PDF: {filename}")
+        except Exception as e:
+            logger.error(f"Error saving {pdf.filename}: {str(e)}")
+            continue
 
-    for pdf in pdfs:
-        filename = pdf.filename
-        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        pdf.save(path)
-        saved_paths.append(path)
+    if not saved_paths:
+        return jsonify({'error': 'Could not save any PDFs'}), 400
 
     chatbot.ingest_pdfs(saved_paths)
-    return jsonify({'message': 'PDFs processed and ingested successfully'})
+    return jsonify({'message': f'{len(saved_paths)} PDF(s) processed successfully'})
 
 @app.route('/ask', methods=['POST'])
 def ask():
-    data = request.json
+    data = request.get_json()
     if not data or 'question' not in data:
         return jsonify({'error': 'No question provided'}), 400
 
@@ -53,4 +58,4 @@ def ask():
     return jsonify({'answer': answer})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

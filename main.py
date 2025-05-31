@@ -33,8 +33,8 @@ class RAGChatbot:
         logger.info("Setting up conversation memory...")
         self.memory = ConversationBufferMemory(
             memory_key="chat_history",
-            return_messages=False,
-            output_key='answer'  # Added for better chain compatibility
+            return_messages=True,
+            output_key='answer'
         )
         self.qa_chain = None
         logger.info("RAGChatbot initialized successfully")
@@ -82,14 +82,19 @@ class RAGChatbot:
 
     def ask(self, question: str):
         if not self.qa_chain:
-            logger.warning("QA chain not initialized - no PDFs processed")
+            logger.warning("QA chain not initialized")
             return "Please upload PDFs first."
             
-        logger.info(f"Processing question: {question}")
+        logger.info(f"Question: {question}")
         try:
+            # Clear previous error state if any
+            if "An error occurred:" in self.memory.chat_memory.messages[-1].content if self.memory.chat_memory.messages else "":
+                self.memory.chat_memory.messages.pop()
             result = self.qa_chain.invoke({"question": question})
-            logger.info("Question processed successfully")
+            logger.info("Answer generated")
             return result["answer"]
         except Exception as e:
-            logger.error(f"Error processing question: {str(e)}")
+            logger.error(f"Error: {str(e)}", exc_info=True)
+            # Store error in memory but mark it as system message
+            self.memory.chat_memory.add_ai_message(f"Error: {str(e)}")
             return f"An error occurred: {str(e)}"
