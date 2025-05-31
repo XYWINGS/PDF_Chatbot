@@ -1,0 +1,10 @@
+flask
+langchain
+langchain-core
+langchain-community
+langchain-huggingface
+huggingface_hub
+faiss-cpu
+sentence-transformers
+pypdf
+tiktoken
