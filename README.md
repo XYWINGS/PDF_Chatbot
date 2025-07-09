@@ -25,7 +25,6 @@ A conversational AI system that answers questions based on content extracted fro
 1. **Clone the repository**
    ```bash
    git clone https://github.com/yourusername/PDF_Chatbot.git
-   cd PDF_Chatbot
    ```
 
 2. **Set up virtual environment**
